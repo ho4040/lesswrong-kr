@@ -16,7 +16,7 @@ license: "원문 라이선스에 따름 (LessWrong)"
 > **원문**: [How Go Players Disempower Themselves to AI](https://www.lesswrong.com/posts/nR3DkyivzF4ve97oM/how-go-players-disempower-themselves-to-ai)
 > **작성자**: Ashe Vazquez Nuñez · 2026-05-01 · 👍 506
 >
-> 본 글은 LessWrong 인기 게시글을 한국어로 번역한 것입니다. 번역 오류는 [GitHub 이슈](https://github.com/ho4040/lesswrong-kr/issues)로 알려주세요.
+> 본 글은 LessWrong 인기 게시글을 AI로 자동 번역한 것입니다. 번역 오류는 [GitHub 이슈](https://github.com/ho4040/lesswrong-kr/issues)로 알려주세요.
 
 ---
 

@@ -16,7 +16,7 @@ license: "원문 라이선스에 따름 (LessWrong)"
 > **원문**: [Irretrievability; or, Murphy's Curse of Oneshotness upon ASI](https://www.lesswrong.com/posts/fbrz9xhKpEeTKw5zL/irretrievability-or-murphy-s-curse-of-oneshotness-upon-asi)
 > **작성자**: Eliezer Yudkowsky · 2026-05-04 · 👍 234
 >
-> 본 글은 LessWrong 인기 게시글을 Claude API로 자동 번역한 것입니다. 번역 오류는 [GitHub 이슈](https://github.com/ho4040/lesswrong-kr/issues)로 알려주세요.
+> 본 글은 LessWrong 인기 게시글을 AI로 자동 번역한 것입니다. 번역 오류는 [GitHub 이슈](https://github.com/ho4040/lesswrong-kr/issues)로 알려주세요.
 
 ---
 

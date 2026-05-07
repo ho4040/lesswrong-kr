@@ -18,6 +18,4 @@ LessWrong의 글은 작성자에게 저작권이 있으며, 각 글의 라이선
 
 ## 운영
 
-- 운영자: Rick ([rick@caveduck.io](mailto:rick@caveduck.io)) — Warpspace Inc.
-- GitHub: [ho4040](https://github.com/ho4040)
-- 소스: [github.com/ho4040/lesswrong-kr](https://github.com/ho4040/lesswrong-kr)
+- rick@caveduck.io
