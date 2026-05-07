@@ -11,6 +11,9 @@ const MODEL = process.env.MODEL ?? "claude-opus-4-7";
 const SITE_BASE_URL = process.env.SITE_BASE_URL ?? "https://ho4040.github.io/lesswrong-kr";
 const SLACK_BOT_TOKEN = process.env.SLACK_BOT_TOKEN;
 const SLACK_CHANNEL = process.env.SLACK_CHANNEL ?? "news";
+const SUMMARY_THRESHOLD = parseInt(process.env.SUMMARY_THRESHOLD ?? "5000", 10);
+
+type Mode = "translate" | "summary";
 
 interface LWPostMeta {
   _id: string;
@@ -79,12 +82,39 @@ const SYSTEM_PROMPT = `당신은 LessWrong 글을 한국어로 번역하는 전�
 - 의역보다 직역에 가깝게, 단 어색하지 않은 한국어 어순으로
 - 번역 결과만 출력. 설명이나 메타 코멘트 금지.`;
 
-async function translateBody(client: Anthropic, markdown: string): Promise<string> {
+const SUMMARY_PROMPT = `당신은 LessWrong 글을 한국어로 요약하는 전문 요약가입니다.
+
+요약 원칙:
+- 글의 핵심 주장과 논증 구조를 보존하고, 부수적 예시·여담·반복은 압축
+- 분량은 원문 길이의 약 1/3, 한국어 1500~3500자 사이를 권장 (글의 복잡도에 따라 조정)
+- 마크다운 구조(헤더, 목록, 인용)를 사용해 가독성 유지
+- 핵심 인용·링크·각주는 최대한 보존
+- 합리주의 커뮤니티 핵심 용어집:
+  - rationality → 합리성, rationalist → 합리주의자
+  - alignment → 정렬, inner/outer alignment → 내적/외적 정렬
+  - prior → 사전 확률, posterior → 사후 확률
+  - update / updating → 갱신, 신념 갱신
+  - bayesian → 베이지안, utility → 효용
+  - agent → 에이전트, mesa-optimizer → 메사 최적화
+  - steelman → 강한 반론(steelman), epistemics → 인식론
+  - AGI / ASI → 그대로 표기
+- 요약 결과만 출력. "이 글은…" 같은 메타 코멘트 금지.
+- 도입부에 굵은 글씨로 한 문장 요지(TL;DR) 한 줄 제시 후, 본문 요약을 이어 작성`;
+
+async function translateBody(client: Anthropic, markdown: string, mode: Mode): Promise<string> {
+  const isSummary = mode === "summary";
   const msg = await client.messages.create({
     model: MODEL,
-    max_tokens: 16000,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: `다음 LessWrong 글을 한국어로 번역하세요:\n\n${markdown}` }],
+    max_tokens: isSummary ? 4000 : 16000,
+    system: isSummary ? SUMMARY_PROMPT : SYSTEM_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: isSummary
+          ? `다음 LessWrong 글을 한국어로 요약하세요:\n\n${markdown}`
+          : `다음 LessWrong 글을 한국어로 번역하세요:\n\n${markdown}`,
+      },
+    ],
   });
   const block = msg.content[0];
   if (block.type !== "text") throw new Error("expected text block");
@@ -112,20 +142,22 @@ function postSiteUrl(filename: string): string {
 async function notifySlack(args: {
   titleKo: string;
   postUrl: string;
+  mode: Mode;
   original: { title: string; url: string; author: string; score: number };
 }): Promise<void> {
   if (!SLACK_BOT_TOKEN) {
     console.log("  (slack: SLACK_BOT_TOKEN not set, skipping)");
     return;
   }
-  const { titleKo, postUrl, original } = args;
-  const text = `📝 새 LessWrong 번역: <${postUrl}|${titleKo}>`;
+  const { titleKo, postUrl, mode, original } = args;
+  const label = mode === "summary" ? "요약" : "번역";
+  const text = `📝 새 LessWrong ${label}: <${postUrl}|${titleKo}>`;
   const blocks = [
     {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `📝 *새 LessWrong 번역*\n*<${postUrl}|${titleKo}>*`,
+        text: `📝 *새 LessWrong ${label}*\n*<${postUrl}|${titleKo}>*`,
       },
     },
     {
@@ -160,17 +192,23 @@ async function notifySlack(args: {
   }
 }
 
-function buildMarkdown(post: LWPost, titleKo: string, bodyKo: string): { filename: string; content: string } {
+function buildMarkdown(post: LWPost, titleKo: string, bodyKo: string, mode: Mode): { filename: string; content: string } {
   const date = post.postedAt.slice(0, 10);
   const filename = `${date}-${post.slug}-${post._id}.md`;
   const url = `https://www.lesswrong.com/posts/${post._id}/${post.slug}`;
   const yamlEsc = (s: string) => JSON.stringify(s);
+  const isSummary = mode === "summary";
+  const tag = isSummary ? "요약" : "번역";
+  const titlePrefix = isSummary ? "[요약] " : "";
+  const notice = isSummary
+    ? "본 글은 원문이 길어 LessWrong 인기 게시글을 AI로 자동 요약한 것입니다. 전체 내용은 원문을 참고하세요."
+    : "본 글은 LessWrong 인기 게시글을 AI로 자동 번역한 것입니다. 번역 오류는 [GitHub 이슈](https://github.com/ho4040/lesswrong-kr/issues)로 알려주세요.";
 
   const frontmatter = `---
-title: ${yamlEsc(titleKo)}
+title: ${yamlEsc(titlePrefix + titleKo)}
 date: ${post.postedAt}
 draft: false
-tags: ["LessWrong", "번역"]
+tags: ["LessWrong", ${yamlEsc(tag)}]
 summary: ""
 original:
   title: ${yamlEsc(post.title)}
@@ -178,13 +216,14 @@ original:
   author: ${yamlEsc(post.user.displayName)}
   date: ${date}
   score: ${post.baseScore}
+mode: ${yamlEsc(mode)}
 license: "원문 라이선스에 따름 (LessWrong)"
 ---
 
 > **원문**: [${post.title}](${url})
 > **작성자**: ${post.user.displayName} · ${date} · 👍 ${post.baseScore}
 >
-> 본 글은 LessWrong 인기 게시글을 AI로 자동 번역한 것입니다. 번역 오류는 [GitHub 이슈](https://github.com/ho4040/lesswrong-kr/issues)로 알려주세요.
+> ${notice}
 
 ---
 
@@ -209,18 +248,21 @@ async function main() {
       console.log("  skip: body too short");
       continue;
     }
+    const mode: Mode = markdown.length > SUMMARY_THRESHOLD ? "summary" : "translate";
+    console.log(`  mode=${mode} (source ${markdown.length} chars, threshold ${SUMMARY_THRESHOLD})`);
     const [titleKo, bodyKo] = await Promise.all([
       translateTitle(client, meta.title),
-      translateBody(client, markdown),
+      translateBody(client, markdown, mode),
     ]);
     const post: LWPost = { ...meta, contents: { markdown } };
-    const { filename, content } = buildMarkdown(post, titleKo, bodyKo);
+    const { filename, content } = buildMarkdown(post, titleKo, bodyKo, mode);
     writeFileSync(join(POSTS_DIR, filename), content);
     console.log(`  ✓ ${filename}`);
 
     await notifySlack({
       titleKo,
       postUrl: postSiteUrl(filename),
+      mode,
       original: {
         title: meta.title,
         url: `https://www.lesswrong.com/posts/${meta._id}/${meta.slug}`,
