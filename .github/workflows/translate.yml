@@ -44,6 +44,8 @@ jobs:
 
       - name: Run translation
         working-directory: scripts
+        env:
+          POSTS_DIR: ${{ github.workspace }}/content/posts
         run: npm run translate
 
       - name: Commit and push

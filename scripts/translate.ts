@@ -3,7 +3,7 @@ import { writeFileSync, existsSync, readdirSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
 const LW_GRAPHQL = "https://www.lesswrong.com/graphql";
-const POSTS_DIR = "content/posts";
+const POSTS_DIR = process.env.POSTS_DIR ?? "content/posts";
 const TOP_N = parseInt(process.env.TOP_N ?? "3", 10);
 const MIN_SCORE = parseInt(process.env.MIN_SCORE ?? "80", 10);
 const DAYS = parseInt(process.env.DAYS ?? "7", 10);
