@@ -58,6 +58,7 @@ jobs:
           if [[ -n "$(git status --porcelain content/posts)" ]]; then
             git add content/posts
             git commit -m "feat: weekly auto-translate $(date +%Y-%m-%d)"
+            git pull --rebase origin main
             git push
           else
             echo "No new translations"
