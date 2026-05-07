@@ -1,0 +1,59 @@
+name: Weekly translate
+
+on:
+  schedule:
+    # 매주 일요일 02:00 UTC (한국시간 일요일 11:00)
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      top_n:
+        description: '번역할 글 개수'
+        required: false
+        default: '3'
+      min_score:
+        description: '최소 baseScore'
+        required: false
+        default: '80'
+      days:
+        description: '최근 며칠'
+        required: false
+        default: '7'
+
+permissions:
+  contents: write
+
+jobs:
+  translate:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Seoul
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      TOP_N: ${{ github.event.inputs.top_n || '3' }}
+      MIN_SCORE: ${{ github.event.inputs.min_score || '80' }}
+      DAYS: ${{ github.event.inputs.days || '7' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps
+        working-directory: scripts
+        run: npm install
+
+      - name: Run translation
+        working-directory: scripts
+        run: npm run translate
+
+      - name: Commit and push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [[ -n "$(git status --porcelain content/posts)" ]]; then
+            git add content/posts
+            git commit -m "feat: weekly auto-translate $(date +%Y-%m-%d)"
+            git push
+          else
+            echo "No new translations"
+          fi

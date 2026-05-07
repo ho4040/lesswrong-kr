@@ -1,0 +1,66 @@
+baseURL = 'https://ho4040.github.io/lesswrong-kr/'
+title = 'LessWrong 인기글 번역'
+theme = 'PaperMod'
+languageCode = 'ko-KR'
+defaultContentLanguage = 'ko'
+
+[params]
+  env = "production"
+  author = "rick"
+  description = "LessWrong 인기글 한국어 번역 모음"
+  keywords = ["LessWrong", "rationality", "AI", "합리주의", "번역"]
+  defaultTheme = "auto"
+  ShowReadingTime = true
+  ShowShareButtons = false
+  ShowPostNavLinks = true
+  ShowBreadCrumbs = true
+  ShowCodeCopyButtons = true
+  ShowToc = true
+  TocOpen = false
+  ShowRssButtonInSectionTermList = true
+
+  [params.profileMode]
+    enabled = true
+    title = "LessWrong 인기글 번역"
+    subtitle = "합리적 사고를 위한 글들을 한국어로"
+
+  [[params.socialIcons]]
+    name = "github"
+    url = "https://github.com/ho4040/lesswrong-kr"
+  [[params.socialIcons]]
+    name = "rss"
+    url = "/lesswrong-kr/index.xml"
+
+[[menu.main]]
+  name = "글"
+  url = "/posts/"
+  weight = 1
+[[menu.main]]
+  name = "태그"
+  url = "/tags/"
+  weight = 2
+[[menu.main]]
+  name = "아카이브"
+  url = "/archives/"
+  weight = 3
+[[menu.main]]
+  name = "소개"
+  url = "/about/"
+  weight = 4
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+    [markup.goldmark.extensions.passthrough]
+      enable = true
+      [markup.goldmark.extensions.passthrough.delimiters]
+        block = [['\$$', '\$$'], ['\[', '\]']]
+        inline = [['\$', '\$'], ['\(', '\)']]
+  [markup.highlight]
+    style = "monokai"
+    lineNos = false
+    codeFences = true
+
+[outputs]
+  home = ["HTML", "RSS", "JSON"]
