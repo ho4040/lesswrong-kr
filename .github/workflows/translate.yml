@@ -46,6 +46,9 @@ jobs:
         working-directory: scripts
         env:
           POSTS_DIR: ${{ github.workspace }}/content/posts
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: news
+          SITE_BASE_URL: https://ho4040.github.io/lesswrong-kr
         run: npm run translate
 
       - name: Commit and push

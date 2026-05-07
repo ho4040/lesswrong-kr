@@ -8,6 +8,9 @@ const TOP_N = parseInt(process.env.TOP_N ?? "3", 10);
 const MIN_SCORE = parseInt(process.env.MIN_SCORE ?? "80", 10);
 const DAYS = parseInt(process.env.DAYS ?? "7", 10);
 const MODEL = process.env.MODEL ?? "claude-opus-4-7";
+const SITE_BASE_URL = process.env.SITE_BASE_URL ?? "https://ho4040.github.io/lesswrong-kr";
+const SLACK_BOT_TOKEN = process.env.SLACK_BOT_TOKEN;
+const SLACK_CHANNEL = process.env.SLACK_CHANNEL ?? "news";
 
 interface LWPostMeta {
   _id: string;
@@ -100,6 +103,63 @@ async function translateTitle(client: Anthropic, title: string): Promise<string>
   return block.text.trim().replace(/^["']|["']$/g, "");
 }
 
+function postSiteUrl(filename: string): string {
+  // Hugo lowercases filename-derived URLs; strip .md
+  const slug = filename.replace(/\.md$/, "").toLowerCase();
+  return `${SITE_BASE_URL}/posts/${slug}/`;
+}
+
+async function notifySlack(args: {
+  titleKo: string;
+  postUrl: string;
+  original: { title: string; url: string; author: string; score: number };
+}): Promise<void> {
+  if (!SLACK_BOT_TOKEN) {
+    console.log("  (slack: SLACK_BOT_TOKEN not set, skipping)");
+    return;
+  }
+  const { titleKo, postUrl, original } = args;
+  const text = `📝 새 LessWrong 번역: <${postUrl}|${titleKo}>`;
+  const blocks = [
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `📝 *새 LessWrong 번역*\n*<${postUrl}|${titleKo}>*`,
+      },
+    },
+    {
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          text: `원문: <${original.url}|${original.title}> · ${original.author} · 👍 ${original.score}`,
+        },
+      ],
+    },
+  ];
+  const res = await fetch("https://slack.com/api/chat.postMessage", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      Authorization: `Bearer ${SLACK_BOT_TOKEN}`,
+    },
+    body: JSON.stringify({
+      channel: SLACK_CHANNEL,
+      text,
+      blocks,
+      unfurl_links: false,
+      unfurl_media: false,
+    }),
+  });
+  const data = (await res.json()) as { ok: boolean; error?: string };
+  if (!data.ok) {
+    console.warn(`  ⚠ slack post failed: ${data.error}`);
+  } else {
+    console.log(`  ✓ slack notified (#${SLACK_CHANNEL})`);
+  }
+}
+
 function buildMarkdown(post: LWPost, titleKo: string, bodyKo: string): { filename: string; content: string } {
   const date = post.postedAt.slice(0, 10);
   const filename = `${date}-${post.slug}-${post._id}.md`;
@@ -157,6 +217,17 @@ async function main() {
     const { filename, content } = buildMarkdown(post, titleKo, bodyKo);
     writeFileSync(join(POSTS_DIR, filename), content);
     console.log(`  ✓ ${filename}`);
+
+    await notifySlack({
+      titleKo,
+      postUrl: postSiteUrl(filename),
+      original: {
+        title: meta.title,
+        url: `https://www.lesswrong.com/posts/${meta._id}/${meta.slug}`,
+        author: meta.user.displayName,
+        score: meta.baseScore,
+      },
+    });
   }
 }
 
