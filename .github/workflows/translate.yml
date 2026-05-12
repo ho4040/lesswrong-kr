@@ -1,23 +1,23 @@
-name: Weekly translate
+name: Daily translate
 
 on:
   schedule:
-    # 매주 일요일 02:00 UTC (한국시간 일요일 11:00)
-    - cron: '0 2 * * 0'
+    # 매일 22:00 UTC (한국시간 07:00, 출근 시간대)
+    - cron: '0 22 * * *'
   workflow_dispatch:
     inputs:
       top_n:
         description: '번역할 글 개수'
         required: false
-        default: '3'
+        default: '1'
       min_score:
         description: '최소 baseScore'
         required: false
-        default: '80'
+        default: '60'
       days:
         description: '최근 며칠'
         required: false
-        default: '7'
+        default: '4'
 
 permissions:
   contents: write
@@ -28,9 +28,9 @@ jobs:
     env:
       TZ: Asia/Seoul
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      TOP_N: ${{ github.event.inputs.top_n || '3' }}
-      MIN_SCORE: ${{ github.event.inputs.min_score || '80' }}
-      DAYS: ${{ github.event.inputs.days || '7' }}
+      TOP_N: ${{ github.event.inputs.top_n || '1' }}
+      MIN_SCORE: ${{ github.event.inputs.min_score || '60' }}
+      DAYS: ${{ github.event.inputs.days || '4' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -57,7 +57,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if [[ -n "$(git status --porcelain content/posts)" ]]; then
             git add content/posts
-            git commit -m "feat: weekly auto-translate $(date +%Y-%m-%d)"
+            git commit -m "feat: daily auto-translate $(date +%Y-%m-%d)"
             git pull --rebase origin main
             git push
           else
