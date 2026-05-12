@@ -16,6 +16,8 @@ const SUMMARY_THRESHOLD = parseInt(process.env.SUMMARY_THRESHOLD ?? "5000", 10);
 // IT/AI 회사 사내 공유에 적합한 태그 화이트리스트 (Tier 1 코어 + Tier 2 거시/전략).
 // 후보 글에 이 태그 중 하나라도 붙어있어야 통과. INCLUDE_TAG_IDS / EXCLUDE_TAG_IDS 환경변수로 오버라이드 가능.
 const DEFAULT_INCLUDE_TAG_IDS = [
+  // Broad catch-all — 새 글은 세부 태그가 늦게 붙으므로 광역 "AI" 태그도 포함
+  "sYm3HiWcfZvrGu3ui",         // AI
   // Tier 1
   "iKYWGuFx2qH2nYu6J",         // AI Capabilities
   "FBRwHSmTudwiHHtrn",         // AI Evaluations
@@ -38,8 +40,19 @@ function parseTagList(env: string | undefined, fallback: string[]): string[] {
   return env.split(",").map(s => s.trim()).filter(Boolean);
 }
 
+// 광역 "AI" 태그를 포함하므로 사내 공유 부적합 주제를 차단하는 블랙리스트도 기본값으로 둠.
+const DEFAULT_EXCLUDE_TAG_IDS = [
+  "Q9ASuEEoJWxT3RLMT",         // Animal Ethics
+  "tNsqhzTibgGJKPEWB",         // Covid-19
+  "ZnHkaTkxukegSrZqE",         // Cryonics
+  "yrg267i4a8EsgYAXp",         // HPMOR
+  "etDohXtBrXd8WqCtR",         // Fiction
+  "izp6eeJJEg9v5zcur",         // Community
+  "DQHWBcKeiLnyh9za9",         // Community Page
+];
+
 const INCLUDE_TAG_IDS = new Set(parseTagList(process.env.INCLUDE_TAG_IDS, DEFAULT_INCLUDE_TAG_IDS));
-const EXCLUDE_TAG_IDS = new Set(parseTagList(process.env.EXCLUDE_TAG_IDS, []));
+const EXCLUDE_TAG_IDS = new Set(parseTagList(process.env.EXCLUDE_TAG_IDS, DEFAULT_EXCLUDE_TAG_IDS));
 
 type Mode = "translate" | "summary";
 
