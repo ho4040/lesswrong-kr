@@ -13,7 +13,40 @@ const SLACK_BOT_TOKEN = process.env.SLACK_BOT_TOKEN;
 const SLACK_CHANNEL = process.env.SLACK_CHANNEL ?? "news";
 const SUMMARY_THRESHOLD = parseInt(process.env.SUMMARY_THRESHOLD ?? "5000", 10);
 
+// IT/AI 회사 사내 공유에 적합한 태그 화이트리스트 (Tier 1 코어 + Tier 2 거시/전략).
+// 후보 글에 이 태그 중 하나라도 붙어있어야 통과. INCLUDE_TAG_IDS / EXCLUDE_TAG_IDS 환경변수로 오버라이드 가능.
+const DEFAULT_INCLUDE_TAG_IDS = [
+  // Tier 1
+  "iKYWGuFx2qH2nYu6J",         // AI Capabilities
+  "FBRwHSmTudwiHHtrn",         // AI Evaluations
+  "YWzByWvtXunfrBu5b",         // GPT
+  "GrHAiuzAjG2mDxvMB",         // ChatGPT
+  "c42eTtBCXyJmtpqwZ",         // AI-Assisted Alignment
+  "mZTuBntSdPeyLSrec",         // Chain-of-Thought Alignment
+  "aHay2tebonHAYKtac",         // Anthropic (org)
+  // Tier 2
+  "zHjC29kkPmsdo7WTr",         // AI Timelines
+  "oiRp4T6u5poc8r9Tj",         // AI Takeoff
+  "qHDus5MuMNqQxJbjD",         // AI Governance
+  "5f5c37ee1b5cdee568cfb2ac",  // Economic Consequences of AGI
+  "8daMDi9NEShyLqxth",         // Forecasting & Prediction
+  "bxhzaWtdNoEMMkE8r",         // General intelligence
+];
+
+function parseTagList(env: string | undefined, fallback: string[]): string[] {
+  if (env === undefined) return fallback;
+  return env.split(",").map(s => s.trim()).filter(Boolean);
+}
+
+const INCLUDE_TAG_IDS = new Set(parseTagList(process.env.INCLUDE_TAG_IDS, DEFAULT_INCLUDE_TAG_IDS));
+const EXCLUDE_TAG_IDS = new Set(parseTagList(process.env.EXCLUDE_TAG_IDS, []));
+
 type Mode = "translate" | "summary";
+
+interface LWTag {
+  _id: string;
+  name: string;
+}
 
 interface LWPostMeta {
   _id: string;
@@ -22,6 +55,7 @@ interface LWPostMeta {
   baseScore: number;
   postedAt: string;
   user: { displayName: string };
+  tags: LWTag[];
 }
 
 interface LWPost extends LWPostMeta {
@@ -40,15 +74,23 @@ async function gql<T>(query: string): Promise<T> {
   return json.data;
 }
 
+function tagFilter(p: LWPostMeta): boolean {
+  const tagIds = (p.tags ?? []).map(t => t._id);
+  if (EXCLUDE_TAG_IDS.size > 0 && tagIds.some(id => EXCLUDE_TAG_IDS.has(id))) return false;
+  if (INCLUDE_TAG_IDS.size === 0) return true;
+  return tagIds.some(id => INCLUDE_TAG_IDS.has(id));
+}
+
 async function fetchCandidates(): Promise<LWPostMeta[]> {
   const data = await gql<{ posts: { results: LWPostMeta[] } }>(`{
     posts(input:{terms:{view:"new",limit:100}}){
-      results{ _id title slug baseScore postedAt user{displayName} }
+      results{ _id title slug baseScore postedAt user{displayName} tags{_id name} }
     }
   }`);
   const cutoff = Date.now() - DAYS * 24 * 60 * 60 * 1000;
   return data.posts.results
     .filter(p => new Date(p.postedAt).getTime() >= cutoff && p.baseScore >= MIN_SCORE)
+    .filter(tagFilter)
     .sort((a, b) => b.baseScore - a.baseScore);
 }
 
